@@ -1,0 +1,53 @@
+org: mtamayoh
+service: api-comentario
+
+provider:
+  name: aws
+  runtime: python3.13
+  memorySize: 1024
+  timeout: 20
+  iam:
+    role: arn:aws:iam::682419757205:role/LabRole
+  environment:
+    TABLE_NAME: ${sls:stage}-t_comentarios
+    INGEST_BUCKET: ${sls:stage}-bucket-ingesta-comentarios
+
+functions:
+  crear:
+    handler: comentario.lambda_handler
+    events:
+      - http:
+          path: /comentario/crear
+          method: post
+          cors: true
+
+resources:
+  Resources:
+    TablaComentarios:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.TABLE_NAME}
+        AttributeDefinitions:
+          - AttributeName: tenant_id
+            AttributeType: S
+          - AttributeName: uuid
+            AttributeType: S
+        KeySchema:
+          - AttributeName: tenant_id
+            KeyType: HASH
+          - AttributeName: uuid
+            KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
+
+    BucketIngesta:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:provider.environment.INGEST_BUCKET}
+        VersioningConfiguration:
+          Status: Enabled
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+
