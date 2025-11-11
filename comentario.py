@@ -6,8 +6,8 @@ import json
 def lambda_handler(event, context):
     print(event)
 
-    # Parsear el body (puede venir como string)
-    body = event['body']
+    # Parsear el body (puede venir como string desde API Gateway)
+    body = event.get('body')
     if isinstance(body, str):
         body = json.loads(body)
 
@@ -16,7 +16,7 @@ def lambda_handler(event, context):
     nombre_tabla = os.environ["TABLE_NAME"]
     bucket_name = os.environ["INGEST_BUCKET"]
 
-    # Crear el comentario
+    # Crear comentario
     uuidv1 = str(uuid.uuid1())
     comentario = {
         'tenant_id': tenant_id,
@@ -31,13 +31,13 @@ def lambda_handler(event, context):
     table = dynamodb.Table(nombre_tabla)
     table.put_item(Item=comentario)
 
-    # Guardar JSON en S3 (Ingesta Push)
+    # Guardar JSON en S3
     s3 = boto3.client('s3')
     file_name = f"{tenant_id}/{uuidv1}.json"
     s3.put_object(
         Bucket=bucket_name,
         Key=file_name,
-        Body=json.dumps(comentario),
+        Body=json.dumps(comentario, indent=2),
         ContentType='application/json'
     )
 
@@ -46,7 +46,10 @@ def lambda_handler(event, context):
     # Respuesta HTTP
     return {
         'statusCode': 200,
-        'headers': {'Content-Type': 'application/json'},
+        'headers': {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+        },
         'body': json.dumps({
             'message': 'Comentario guardado correctamente',
             'comentario': comentario,
